@@ -1,0 +1,147 @@
+@startuml
+'configuration package
+class SecurityConfig {
+- JwtFilter jwtFilter
++ SecurityFilterChain filterChain(HttpSecurity)
++ WebMvcConfigurer corsConfigurer()
+}
+
+'constants package
+class ControllerConstant {
++ {static} String ROOT_PATH
+}
+class AllowedRequestMatchers {
++ {static} String LOGIN_PATH
++ {static} String TOKEN_PATH
++ {static} String REFRESH_TOKEN_PATH
++ {static} String REGISTER_USER_PATH
+}
+
+'controller package
+class AuthController {
+- AuthService authService
++ ResponseEntity<JwtAuthentication> getAuthInfo()
++ ResponseEntity<JwtResponse> login(JwtRequest)
++ ResponseEntity<JwtResponse> getNewAccessToken(RefreshJwtRequest)
++ ResponseEntity<JwtResponse> getNewRefreshToken(RefreshJwtRequest)
+}
+class UserController {
+- UserService userService
++ List<User> getUsers()
++ User getUser(String)
++ void addUser(User)
++ void deleteUser(String)
+}
+
+'entity package
+class RefreshJwtRequest {
+- String refreshToken
+}
+class JwtResponse {
+- String type
+- String accessToken
+- String refreshToken
+}
+class JwtAuthentication {
+- boolean authenticated
+- String username
++ Collection<? extends GrantedAuthority> getAuthorities()
++ Object getCredentials()
++ Object getDetails()
++ Object getPrincipal()
++ boolean isAuthenticated()
++ void setAuthenticated(boolean)
++ String getName()
+}
+class User {
+- String username
+- String password
+}
+class JwtRequest {
+- String username
+- String password
+}
+
+'repository package
+interface UserRepository {
+~ Optional<User> findUserByUsername(String)
+}
+
+'service package
+class UserService {
+- {static} String NO_USER_FOUND
+- {static} String USER_ALREADY_EXISTS
+- UserRepository userRepository
+- AES256TextEncryptor aes256TextEncryptor
++ List<User> getUsers()
++ User getUserByUsername(String)
++ void addUser(User)
++ void deleteUserByUsername(String)
+}
+class AuthService {
+- UserService userService
+- JwtProvider jwtProvider
+- AES256TextEncryptor aes256TextEncryptor
+- Map<String,String> refreshStorage
++ JwtResponse login(JwtRequest)
++ JwtResponse getAccessToken(String)
++ JwtResponse refresh(String)
++ JwtAuthentication getAuthInfo()
+}
+
+'util package
+class JwtUtils {
++ {static} JwtAuthentication generate(Claims)
+}
+
+'application class
+class VideoStreamingAuthApplication {
++ {static} void main(String[])
+}
+
+'application configuration class
+class ApplicationConfiguration {
+- String jasyptPassword
++ AES256TextEncryptor getEncryptor()
+}
+
+'component package
+class JwtFilter {
+- {static} String AUTHORIZATION
+- JwtProvider jwtProvider
++ void doFilter(ServletRequest,ServletResponse,FilterChain)
+- String getTokenFromRequest(HttpServletRequest)
+}
+class JwtProvider {
+- SecretKey jwtAccessSecret
+- SecretKey jwtRefreshSecret
++ String generateAccessToken(User)
++ String generateRefreshToken(User)
++ boolean validateAccessToken(String)
++ boolean validateRefreshToken(String)
+- boolean validateToken(String,Key)
++ Claims getAccessClaims(String)
++ Claims getRefreshClaims(String)
+- Claims getClaims(String,Key)
+}
+
+'connections
+
+VideoStreamingAuthApplication --> SecurityConfig : add configuration to context
+VideoStreamingAuthApplication --> ApplicationConfiguration : add configuration to context
+VideoStreamingAuthApplication --> AuthController : init controller
+VideoStreamingAuthApplication --> UserController : init controller
+
+AuthController ...> ControllerConstant : use constant for request path
+UserController ...> ControllerConstant : use constant for request path
+
+UserService  ...> UserRepository : use CRUD methods
+AuthService  ...> UserService : auth user
+AuthService  ...> JwtProvider : generate and validate tokens
+
+SecurityConfig ...> AllowedRequestMatchers : use constant for allowed matchers
+
+JwtFilter ...> JwtUtils : generate tokens
+
+SecurityConfig ...> JwtFilter : apply JWT filter
+@enduml
